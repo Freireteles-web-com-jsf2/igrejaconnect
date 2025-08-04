@@ -18,15 +18,24 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
 
-    - name: Setup clean package.json for GitHub Pages
+    - name: Setup clean environment for GitHub Pages
       run: |
+        # Use clean package.json without Cloudflare dependencies
         cp package.gh-pages.json package.json
+        
+        # Remove all traces of previous installation
         rm -rf node_modules package-lock.json
+        
+        # Generate new package-lock.json
+        npm install
+        
+        # Verify no Cloudflare dependencies
+        echo "Checking for Cloudflare dependencies..."
+        ! grep -r "cloudflare\|miniflare\|wrangler" package-lock.json || (echo "Found Cloudflare dependencies!" && exit 1)
 
-    - name: Install dependencies
-      run: npm install
+    - name: Build project
+      run: npm run build
 
     - name: Build
       run: npm run build
