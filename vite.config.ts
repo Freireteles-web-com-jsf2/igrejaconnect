@@ -5,11 +5,13 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
   plugins: [react(), cloudflare()],
+  base: process.env.NODE_ENV === 'production' ? '/mocha-app/' : '/',
   server: {
     allowedHosts: true,
   },
   build: {
     chunkSizeWarningLimit: 5000,
+    outDir: 'dist',
   },
   resolve: {
     alias: {

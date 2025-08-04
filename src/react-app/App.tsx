@@ -21,8 +21,10 @@ import Communication from "@/react-app/pages/Communication";
 
 
 export default function App() {
+  const basename = process.env.NODE_ENV === 'production' ? '/mocha-app' : '';
+  
   return (
-    <Router>
+    <Router basename={basename}>
       <NotificationProvider>
         <Routes>
         <Route path="/" element={<HomePage />} />
