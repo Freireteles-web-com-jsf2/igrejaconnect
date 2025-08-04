@@ -1,0 +1,60 @@
+name: GitHub Pages Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Prepare clean build environment
+      run: |
+        echo "=== ORIGINAL PACKAGE.JSON ==="
+        cat package.json | head -20
+        
+        echo "=== COPYING CLEAN PACKAGE.JSON ==="
+        cp package.gh-pages.json package.json
+        
+        echo "=== NEW PACKAGE.JSON ==="
+        cat package.json | head -20
+        
+        echo "=== CLEANING ENVIRONMENT ==="
+        rm -rf node_modules package-lock.json ~/.npm
+        npm cache clean --force || true
+        
+        echo "=== INSTALLING DEPENDENCIES ==="
+        npm install
+        
+        echo "=== AVAILABLE SCRIPTS ==="
+        npm run
+        
+        echo "=== CHECKING FOR CLOUDFLARE DEPS ==="
+        if grep -r "cloudflare\|miniflare\|wrangler" package-lock.json; then
+          echo "ERROR: Found Cloudflare dependencies!"
+          exit 1
+        else
+          echo "SUCCESS: No Cloudflare dependencies found"
+        fi
+
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+        VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
