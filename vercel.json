@@ -1,25 +1,25 @@
 {
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/client",
-  "functions": {
-    "api/index.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.js"
+    "version": 2,
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist/client",
+    "functions": {
+        "api/index.js": {
+            "runtime": "nodejs18.x"
+        }
     },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "/api/index.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/index.html"
+        }
+    ],
+    "env": {
+        "VITE_SUPABASE_URL": "@vite_supabase_url",
+        "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key",
+        "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key"
     }
-  ],
-  "env": {
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key", 
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase_service_role_key"
-  }
 }
