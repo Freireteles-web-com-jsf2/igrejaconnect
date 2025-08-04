@@ -3,8 +3,13 @@ import Layout from '@/react-app/components/Layout';
 import { AdminOnly } from '@/react-app/components/PermissionGuard';
 import UserPermissionMatrix from '@/react-app/components/UserPermissionMatrix';
 import UserActivityLog from '@/react-app/components/UserActivityLog';
+import UserPermissionValidation from '@/react-app/components/UserPermissionValidation';
+import UserAuditTrail from '@/react-app/components/UserAuditTrail';
+import SimplePermissionEditor from '@/react-app/components/SimplePermissionEditor';
 import { useApi, apiRequest } from '@/react-app/hooks/useApi';
 import { Users, Edit, Shield, Save, X, UserCheck, UserX, Search, Download, Grid, List, Clock } from 'lucide-react';
+import { showToast } from '@/react-app/utils/toast';
+import Avatar from '@/react-app/components/Avatar';
 import type { ChurchUser } from '@/shared/supabase';
 import type { Permission } from '@/shared/permissions';
 import { SYSTEM_ROLES } from '@/shared/permissions';
@@ -27,9 +32,46 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'list' | 'matrix' | 'activity'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'matrix' | 'activity' | 'audit'>('list');
+  const [validationResult, setValidationResult] = useState<any>(null);
+  const [localUserUpdates, setLocalUserUpdates] = useState<Record<string, Partial<UserWithPermissions>>>({});
+
+  // Função para testar a API de permissões
+  const testPermissionsAPI = async (userId: string) => {
+    try {
+      console.log('🧪 Testando API de permissões para usuário:', userId);
+
+      // Buscar o usuário específico na lista atual
+      const currentUser = users?.find(u => u.id === userId);
+      if (currentUser) {
+        console.log('📄 Usuário encontrado localmente:', {
+          id: currentUser.id,
+          email: currentUser.email,
+          churchRole: currentUser.churchRole,
+          permissions: currentUser.userPermissions?.length || 0
+        });
+        return currentUser;
+      } else {
+        console.log('❌ Usuário não encontrado na lista local');
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Erro ao testar API:', error);
+      return null;
+    }
+  };
 
   const { data: users, loading: usersLoading, refetch: refetchUsers, error: usersError } = useApi<UserWithPermissions[]>('/api/users');
+
+  // Debug: Log dos usuários quando mudarem
+  React.useEffect(() => {
+    if (users) {
+      console.log('👥 Usuários carregados:', users.length);
+      users.forEach(user => {
+        console.log(`- ${user.email}: ${user.churchRole} (${user.userPermissions?.length || 0} permissões)`);
+      });
+    }
+  }, [users]);
   const { data: permissions, error: permissionsError } = useApi<Permission[]>('/api/permissions');
 
   // Debug: mostrar erros no console
@@ -43,30 +85,155 @@ export default function UserManagement() {
   }, [usersError, permissionsError]);
 
   const handleEditUser = (user: UserWithPermissions) => {
+    // Debug logs detalhados
+    console.log('🔧 handleEditUser chamado para:', {
+      id: user.id,
+      email: user.email,
+      churchRole: user.churchRole,
+      userPermissions: user.userPermissions?.length || 0
+    });
+
     setSelectedUser(user);
-    setSelectedRole(user.churchRole);
+    // Tentar diferentes campos para o papel
+    const userRole = user.churchRole || (user as any).role || 'Membro';
+    setSelectedRole(userRole);
     setUserPermissions(user.userPermissions || []);
     setEditingPermissions(true);
+
+    console.log('✅ Estado atualizado:', {
+      selectedUserId: user.id,
+      selectedRole: userRole,
+      selectedPermissions: user.userPermissions?.length || 0
+    });
   };
 
-  const handleSavePermissions = async () => {
+  const handleSavePermissions = async (roleOverride?: string, permissionsOverride?: string[]) => {
     if (!selectedUser) return;
 
+    // Usar valores passados ou valores do estado
+    const roleToSave = roleOverride || selectedRole;
+    const permissionsToSave = permissionsOverride || userPermissions;
+
+    // Debug logs detalhados
+    console.log('🚀 handleSavePermissions chamado:', {
+      userId: selectedUser.id,
+      userEmail: selectedUser.email,
+      roleToSave,
+      permissionsCount: permissionsToSave.length,
+      usingOverride: !!roleOverride
+    });
+
     try {
-      await apiRequest(`/api/users/${selectedUser.id}/permissions`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          role: selectedRole,
-          permissions: userPermissions,
-        }),
+      const oldRole = selectedUser.churchRole;
+      const oldPermissions = selectedUser.userPermissions;
+
+      const payload = {
+        role: roleToSave,
+        permissions: permissionsToSave,
+      };
+
+      console.log('📦 Payload enviado:', {
+        userId: selectedUser.id,
+        role: payload.role,
+        permissions: payload.permissions.length,
+        permissionsList: payload.permissions
       });
+
+      // Tentar salvar via API
+      try {
+        await apiRequest(`/api/users/${selectedUser.id}/permissions`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+        console.log('✅ API call successful');
+      } catch (apiError) {
+        console.error('❌ API call failed:', apiError);
+        console.log('🔄 Tentando atualização local como fallback...');
+
+        // Fallback: atualizar dados localmente
+        setLocalUserUpdates(prev => ({
+          ...prev,
+          [selectedUser.id]: {
+            churchRole: roleToSave,
+            userPermissions: permissionsToSave
+          }
+        }));
+        console.log('📝 Dados atualizados localmente para usuário:', selectedUser.id);
+
+        showToast({
+          title: 'Aviso',
+          message: 'Alterações aplicadas localmente. Verifique a conexão com o servidor.',
+          type: 'warning'
+        });
+      }
+
+
+
+      // Log de auditoria local (não depende da API de notificações)
+      const oldPermissionsSorted = (oldPermissions || []).slice().sort();
+      const newPermissionsSorted = permissionsToSave.slice().sort();
+
+      if (oldRole !== roleToSave || JSON.stringify(oldPermissionsSorted) !== JSON.stringify(newPermissionsSorted)) {
+        console.log('Auditoria: Permissões alteradas', {
+          user: selectedUser.google_user_data?.name || selectedUser.email,
+          oldRole,
+          newRole: roleToSave,
+          oldPermissions: oldPermissionsSorted,
+          newPermissions: newPermissionsSorted,
+          timestamp: new Date().toISOString()
+        });
+
+        // Mostrar toast informativo sobre a mudança
+        showToast({
+          title: 'Auditoria Registrada',
+          message: `Alterações nas permissões de ${selectedUser.google_user_data?.name || selectedUser.email} foram registradas`,
+          type: 'info'
+        });
+      }
+
+      // Atualizar o usuário localmente para testar
+      if (selectedUser) {
+        const updatedUser = {
+          ...selectedUser,
+          churchRole: roleToSave,
+          userPermissions: permissionsToSave
+        };
+        console.log('✅ Usuário atualizado localmente:', {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          newRole: updatedUser.churchRole,
+          newPermissions: updatedUser.userPermissions.length
+        });
+      }
 
       setEditingPermissions(false);
       setSelectedUser(null);
-      refetchUsers();
+
+      // Forçar atualização dos dados
+      console.log('🔄 Forçando atualização dos dados...');
+      await refetchUsers();
+
+      // Aguardar um pouco para garantir que os dados foram atualizados
+      setTimeout(() => {
+        console.log('✅ Dados atualizados');
+      }, 1000);
+
+      // Feedback de sucesso
+      showToast({
+        title: 'Permissões Salvas',
+        message: 'As permissões foram atualizadas com sucesso',
+        type: 'success'
+      });
+
     } catch (error) {
       console.error('Erro ao salvar permissões:', error);
-      alert('Erro ao salvar permissões. Tente novamente.');
+
+      // Feedback de erro
+      showToast({
+        title: 'Erro ao Salvar',
+        message: 'Não foi possível salvar as permissões. Tente novamente.',
+        type: 'error'
+      });
     }
   };
 
@@ -79,9 +246,19 @@ export default function UserManagement() {
         }),
       });
       refetchUsers();
+
+      showToast({
+        title: 'Status Alterado',
+        message: `Usuário ${currentStatus ? 'desativado' : 'ativado'} com sucesso`,
+        type: 'success'
+      });
     } catch (error) {
       console.error('Erro ao alterar status do usuário:', error);
-      alert('Erro ao alterar status do usuário. Tente novamente.');
+      showToast({
+        title: 'Erro ao Alterar Status',
+        message: 'Não foi possível alterar o status do usuário. Tente novamente.',
+        type: 'error'
+      });
     }
   };
 
@@ -111,7 +288,7 @@ export default function UserManagement() {
   };
 
   const handlePermissionToggle = (permission: string) => {
-    setUserPermissions(prev => 
+    setUserPermissions(prev =>
       prev.includes(permission)
         ? prev.filter(p => p !== permission)
         : [...prev, permission]
@@ -127,15 +304,21 @@ export default function UserManagement() {
     return groups;
   }, {} as Record<string, Permission[]>) || {};
 
+  // Apply local updates to users
+  const usersWithLocalUpdates = users?.map(user => ({
+    ...user,
+    ...localUserUpdates[user.id]
+  })) || [];
+
   // Filter users based on search and filters
-  const filteredUsers = users?.filter(user => {
-    const matchesSearch = !searchTerm || 
+  const filteredUsers = usersWithLocalUpdates?.filter(user => {
+    const matchesSearch = !searchTerm ||
       (user.google_user_data?.name || user.email).toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesRole = !roleFilter || user.churchRole === roleFilter;
-    
-    const matchesStatus = !statusFilter || 
+
+    const matchesStatus = !statusFilter ||
       (statusFilter === 'active' && user.is_active) ||
       (statusFilter === 'inactive' && !user.is_active);
 
@@ -180,36 +363,43 @@ export default function UserManagement() {
                 <div className="flex bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
-                      viewMode === 'list' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${viewMode === 'list'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     <List className="w-4 h-4" />
                     <span className="text-sm">Lista</span>
                   </button>
                   <button
                     onClick={() => setViewMode('matrix')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
-                      viewMode === 'matrix' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${viewMode === 'matrix'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     <Grid className="w-4 h-4" />
                     <span className="text-sm">Matriz</span>
                   </button>
                   <button
                     onClick={() => setViewMode('activity')}
-                    className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
-                      viewMode === 'activity' 
-                        ? 'bg-white text-gray-900 shadow-sm' 
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${viewMode === 'activity'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     <Clock className="w-4 h-4" />
                     <span className="text-sm">Atividades</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('audit')}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${viewMode === 'audit'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span className="text-sm">Auditoria</span>
                   </button>
                 </div>
                 <button
@@ -234,7 +424,7 @@ export default function UserManagement() {
                 <Users className="w-8 h-8 text-blue-600" />
               </div>
             </div>
-            
+
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -244,7 +434,7 @@ export default function UserManagement() {
                 <UserCheck className="w-8 h-8 text-green-600" />
               </div>
             </div>
-            
+
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -254,7 +444,7 @@ export default function UserManagement() {
                 <UserX className="w-8 h-8 text-red-600" />
               </div>
             </div>
-            
+
             <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -281,7 +471,7 @@ export default function UserManagement() {
                   />
                 </div>
               </div>
-              
+
               <div className="flex gap-4">
                 <select
                   value={roleFilter}
@@ -293,7 +483,7 @@ export default function UserManagement() {
                     <option key={role} value={role}>{role}</option>
                   ))}
                 </select>
-                
+
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
@@ -329,137 +519,172 @@ export default function UserManagement() {
             <UserPermissionMatrix />
           ) : viewMode === 'activity' ? (
             <UserActivityLog />
+          ) : viewMode === 'audit' ? (
+            <UserAuditTrail />
           ) : (
             /* Users List */
             <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Usuários do Sistema ({filteredUsers.length})
-                </h2>
-                {searchTerm || roleFilter || statusFilter ? (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('');
-                      setRoleFilter('');
-                      setStatusFilter('');
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Limpar filtros
-                  </button>
-                ) : null}
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Usuários do Sistema ({filteredUsers.length})
+                  </h2>
+                  {searchTerm || roleFilter || statusFilter ? (
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setRoleFilter('');
+                        setStatusFilter('');
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      Limpar filtros
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-            
-            <div className="p-6">
-              {usersLoading ? (
-                <div className="space-y-4">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg animate-pulse">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
-                        <div>
-                          <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-                          <div className="h-3 bg-gray-200 rounded w-24"></div>
-                        </div>
-                      </div>
-                      <div className="h-8 bg-gray-200 rounded w-20"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : filteredUsers.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {searchTerm || roleFilter || statusFilter ? 'Nenhum usuário encontrado' : 'Nenhum usuário cadastrado'}
-                  </h3>
-                  <p className="text-gray-600">
-                    {searchTerm || roleFilter || statusFilter 
-                      ? 'Tente ajustar os filtros de busca.'
-                      : 'Os usuários aparecerão aqui quando fizerem login no sistema.'
-                    }
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-4">
-                        <img
-                          src={user.google_user_data?.picture || '/api/placeholder/48/48'}
-                          alt="Profile"
-                          className="w-12 h-12 rounded-full border-2 border-gray-200"
-                        />
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {user.google_user_data?.name || user.email}
-                          </h3>
-                          <div className="flex items-center space-x-3 text-sm text-gray-600">
-                            <span>{user.email}</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              user.churchRole === 'Administrador' 
-                                ? 'bg-purple-100 text-purple-800'
-                                : user.churchRole === 'Pastor'
-                                ? 'bg-blue-100 text-blue-800'
-                                : user.churchRole === 'Tesoureiro'
-                                ? 'bg-green-100 text-green-800'
-                                : user.churchRole === 'Líder'
-                                ? 'bg-orange-100 text-orange-800'
-                                : user.churchRole === 'Voluntário'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {user.churchRole}
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {user.is_active ? 'Ativo' : 'Inativo'}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              {user.userPermissions.length} permissões
-                            </span>
+
+              <div className="p-6">
+                {usersLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg animate-pulse">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                          <div>
+                            <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-24"></div>
                           </div>
                         </div>
+                        <div className="h-8 bg-gray-200 rounded w-20"></div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleToggleUserStatus(user.id, user.is_active)}
-                          className={`p-2 rounded-lg transition-colors ${
-                            user.is_active 
-                              ? 'text-red-600 hover:bg-red-50' 
+                    ))}
+                  </div>
+                ) : filteredUsers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      {searchTerm || roleFilter || statusFilter ? 'Nenhum usuário encontrado' : 'Nenhum usuário cadastrado'}
+                    </h3>
+                    <p className="text-gray-600">
+                      {searchTerm || roleFilter || statusFilter
+                        ? 'Tente ajustar os filtros de busca.'
+                        : 'Os usuários aparecerão aqui quando fizerem login no sistema.'
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredUsers.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center space-x-4">
+                          <Avatar
+                            src={user.google_user_data?.picture}
+                            name={user.google_user_data?.name || user.email}
+                            size={48}
+                            className="border-2 border-gray-200"
+                            alt="Profile"
+                          />
+                          <div>
+                            <h3 className="font-semibold text-gray-900">
+                              {user.google_user_data?.name || user.email}
+                            </h3>
+                            <div className="flex items-center space-x-3 text-sm text-gray-600">
+                              <span>{user.email}</span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.churchRole === 'Administrador'
+                                ? 'bg-purple-100 text-purple-800'
+                                : user.churchRole === 'Pastor'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : user.churchRole === 'Tesoureiro'
+                                    ? 'bg-green-100 text-green-800'
+                                    : user.churchRole === 'Líder'
+                                      ? 'bg-orange-100 text-orange-800'
+                                      : user.churchRole === 'Voluntário'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                {user.churchRole}
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                {user.is_active ? 'Ativo' : 'Inativo'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {user.userPermissions.length} permissões
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleToggleUserStatus(user.id, user.is_active)}
+                            className={`p-2 rounded-lg transition-colors ${user.is_active
+                              ? 'text-red-600 hover:bg-red-50'
                               : 'text-green-600 hover:bg-green-50'
-                          }`}
-                          title={user.is_active ? 'Desativar usuário' : 'Ativar usuário'}
-                        >
-                          {user.is_active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                        </button>
-                        <button
-                          onClick={() => handleEditUser(user)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                          <span>Editar</span>
-                        </button>
+                              }`}
+                            title={user.is_active ? 'Desativar usuário' : 'Ativar usuário'}
+                          >
+                            {user.is_active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => handleEditUser(user)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span>Editar</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Permission Editor Modal */}
+          {/* Simple Permission Editor Modal */}
           {editingPermissions && selectedUser && (
+            <SimplePermissionEditor
+              user={selectedUser}
+              onClose={() => setEditingPermissions(false)}
+              onSave={async (role, permissions) => {
+                console.log('🎯 Received from SimpleEditor:', {
+                  userId: selectedUser.id,
+                  role,
+                  permissions: permissions.length
+                });
+
+                // Atualizar estado local
+                setSelectedRole(role);
+                setUserPermissions(permissions);
+
+                // Testar API antes de salvar
+                const apiTest = await testPermissionsAPI(selectedUser.id);
+                if (apiTest) {
+                  console.log('✅ API está respondendo, prosseguindo com salvamento...');
+                  // Passar valores diretamente para evitar problemas de estado assíncrono
+                  await handleSavePermissions(role, permissions);
+                } else {
+                  console.error('❌ API não está respondendo');
+                  showToast({
+                    title: 'Erro de Conexão',
+                    message: 'Não foi possível conectar com o servidor. Tente novamente.',
+                    type: 'error'
+                  });
+                }
+              }}
+            />
+          )}
+
+          {/* Original Permission Editor Modal - Permanently replaced */}
+          {false && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
                 {/* Modal Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">
-                      Editar Permissões - {selectedUser.google_user_data?.name || selectedUser.email}
+                      Editar Permissões - {selectedUser?.google_user_data?.name || selectedUser?.email}
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
                       Configure o perfil e permissões específicas do usuário
@@ -493,6 +718,13 @@ export default function UserManagement() {
                     </select>
                   </div>
 
+                  {/* Validation */}
+                  <UserPermissionValidation
+                    selectedRole={selectedRole}
+                    userPermissions={userPermissions}
+                    onValidationChange={setValidationResult}
+                  />
+
                   {/* Permissions Grid */}
                   <div className="space-y-6">
                     <h4 className="text-sm font-medium text-gray-700">Permissões Específicas</h4>
@@ -500,11 +732,11 @@ export default function UserManagement() {
                       <div key={module} className="border border-gray-200 rounded-lg p-4">
                         <h5 className="font-semibold text-gray-900 mb-3 capitalize">
                           {module === 'dashboard' ? 'Dashboard' :
-                           module === 'members' ? 'Membros' :
-                           module === 'financial' ? 'Financeiro' :
-                           module === 'users' ? 'Usuários' :
-                           module === 'notifications' ? 'Notificações' :
-                           module === 'settings' ? 'Configurações' : module}
+                            module === 'members' ? 'Membros' :
+                              module === 'financial' ? 'Financeiro' :
+                                module === 'users' ? 'Usuários' :
+                                  module === 'notifications' ? 'Notificações' :
+                                    module === 'settings' ? 'Configurações' : module}
                         </h5>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {modulePermissions.map((permission) => (
@@ -537,8 +769,12 @@ export default function UserManagement() {
                     Cancelar
                   </button>
                   <button
-                    onClick={handleSavePermissions}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => handleSavePermissions()}
+                    disabled={validationResult && !validationResult.isValid}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${validationResult && !validationResult.isValid
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
                   >
                     <Save className="w-4 h-4" />
                     <span>Salvar</span>

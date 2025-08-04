@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Layout from '@/react-app/components/Layout';
 import PermissionGuard from '@/react-app/components/PermissionGuard';
 import CreateNotificationModal from '@/react-app/components/CreateNotificationModal';
+import PushNotificationManager from '@/react-app/components/PushNotificationManager';
+import AutoNotificationManager from '@/react-app/components/AutoNotificationManager';
 import { useApi } from '@/react-app/hooks/useApi';
-import { Bell, Calendar, Plus, Clock, Gift, Phone, Mail, Trash2, Check, CheckCheck, AlertCircle, Info, CheckCircle, XCircle } from 'lucide-react';
+import { useNotifications } from '@/react-app/hooks/useNotifications';
+import { Bell, Calendar, Plus, Clock, Gift, Phone, Mail, Trash2, Check, CheckCheck, AlertCircle, Info, CheckCircle, XCircle, Settings } from 'lucide-react';
 import { PermissionModule, PermissionAction } from '@/shared/permissions';
 
 interface Member {
@@ -23,30 +26,17 @@ interface Department {
   is_active: boolean;
 }
 
-interface Notification {
-  id: number;
-  title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  is_read: boolean;
-  created_at: string;
-  created_by?: string;
-}
+
 
 export default function Notifications() {
-  const [selectedTab, setSelectedTab] = useState<'notifications' | 'events' | 'birthdays'>('notifications');
+  const [selectedTab, setSelectedTab] = useState<'notifications' | 'events' | 'birthdays' | 'settings'>('notifications');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   
   const { data: members } = useApi<Member[]>('/api/members');
   const { data: departments } = useApi<Department[]>('/api/departments');
-  const { data: notificationsData, refetch: refetchNotifications } = useApi<Notification[]>('/api/notifications');
+  const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification, refresh } = useNotifications();
 
-  useEffect(() => {
-    if (notificationsData) {
-      setNotifications(notificationsData);
-    }
-  }, [notificationsData]);
+
 
   // Get birthday members for current month
   const currentMonth = new Date().getMonth() + 1;
@@ -104,63 +94,7 @@ export default function Notifications() {
     return age;
   };
 
-  const markAsRead = async (notificationId: number) => {
-    try {
-      const token = localStorage.getItem('supabase_token');
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
 
-      if (response.ok) {
-        setNotifications(prev => 
-          prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-        );
-      }
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      const token = localStorage.getItem('supabase_token');
-      const response = await fetch('/api/notifications/mark-all-read', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      }
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-    }
-  };
-
-  const deleteNotification = async (notificationId: number) => {
-    try {
-      const token = localStorage.getItem('supabase_token');
-      const response = await fetch(`/api/notifications/${notificationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      }
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-    }
-  };
 
   const createAutoBirthdayNotifications = async () => {
     try {
@@ -176,7 +110,7 @@ export default function Notifications() {
       if (response.ok) {
         const result = await response.json();
         alert(`${result.count} notificações de aniversário criadas!`);
-        refetchNotifications();
+        refresh();
       }
     } catch (error) {
       console.error('Error creating birthday notifications:', error);
@@ -197,7 +131,7 @@ export default function Notifications() {
       if (response.ok) {
         const result = await response.json();
         alert(`${result.count} notificações de reunião criadas!`);
-        refetchNotifications();
+        refresh();
       }
     } catch (error) {
       console.error('Error creating meeting notifications:', error);
@@ -250,7 +184,7 @@ export default function Notifications() {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+
 
   return (
     <PermissionGuard module={PermissionModule.NOTIFICATIONS} action={PermissionAction.VIEW}>
@@ -384,6 +318,17 @@ export default function Notifications() {
                 >
                   <Gift className="w-4 h-4 inline mr-2" />
                   Aniversários
+                </button>
+                <button
+                  onClick={() => setSelectedTab('settings')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    selectedTab === 'settings'
+                      ? 'border-purple-500 text-purple-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 inline mr-2" />
+                  Configurações
                 </button>
               </nav>
             </div>
@@ -572,6 +517,165 @@ export default function Notifications() {
                   )}
                 </div>
               )}
+
+              {selectedTab === 'settings' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Configurações de Notificações
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      Configure como e quando você deseja receber notificações do sistema.
+                    </p>
+                  </div>
+
+                  {/* Push Notifications */}
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">
+                      Notificações Push
+                    </h4>
+                    <PushNotificationManager />
+                  </div>
+
+                  {/* Auto Notifications */}
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">
+                      Lembretes Automáticos
+                    </h4>
+                    <AutoNotificationManager />
+                  </div>
+
+                  {/* Notification Preferences */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <h4 className="text-md font-medium text-gray-900 mb-3">
+                      Preferências de Notificação
+                    </h4>
+                    <div className="space-y-3">
+                      <label className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Som de notificação</span>
+                          <p className="text-xs text-gray-500">Reproduzir som quando receber notificações</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          defaultChecked
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Notificações por email</span>
+                          <p className="text-xs text-gray-500">Receber resumo diário por email</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-medium text-gray-700">Modo não perturbe</span>
+                          <p className="text-xs text-gray-500">Pausar notificações durante horários específicos</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Test System */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-md font-medium text-gray-900">
+                        Testar Sistema
+                      </h4>
+                    </div>
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-600">
+                        Execute testes para verificar se o sistema de notificações está funcionando corretamente.
+                      </p>
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={async () => {
+                            const { testNotificationSystem } = await import('@/react-app/utils/testNotifications');
+                            // Criar toast manualmente
+                            testNotificationSystem.testToast((notification: any) => {
+                              const toast = document.createElement('div');
+                              toast.className = 'fixed top-4 right-4 z-50 max-w-sm w-full bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 shadow-lg';
+                              toast.innerHTML = `
+                                <div class="flex items-start space-x-3">
+                                  <div class="flex-shrink-0">ℹ️</div>
+                                  <div class="flex-1">
+                                    <h4 class="text-sm font-semibold">${notification.title}</h4>
+                                    <p class="text-sm mt-1">${notification.message}</p>
+                                  </div>
+                                </div>
+                              `;
+                              document.body.appendChild(toast);
+                              setTimeout(() => toast.remove(), 5000);
+                            });
+                          }}
+                          className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Testar Toast
+                        </button>
+                        
+                        <button
+                          onClick={async () => {
+                            const { testNotificationSystem } = await import('@/react-app/utils/testNotifications');
+                            const result = testNotificationSystem.testPushNotification();
+                            alert(result ? 'Push notification enviada!' : 'Push notifications não disponíveis');
+                          }}
+                          className="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          Testar Push
+                        </button>
+                        
+                        <button
+                          onClick={async () => {
+                            const { testNotificationSystem } = await import('@/react-app/utils/testNotifications');
+                            const result = await testNotificationSystem.testApiNotification();
+                            alert(result ? 'Notificação criada via API!' : 'Erro na API');
+                          }}
+                          className="px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          Testar API
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Notification History */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-md font-medium text-gray-900">
+                        Histórico de Notificações
+                      </h4>
+                      <button className="text-sm text-red-600 hover:text-red-800">
+                        Limpar histórico
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">Total de notificações recebidas</span>
+                        <span className="font-medium text-gray-900">{notifications.length}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">Não lidas</span>
+                        <span className="font-medium text-red-600">{unreadCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700">Lidas</span>
+                        <span className="font-medium text-green-600">{notifications.length - unreadCount}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -584,7 +688,7 @@ export default function Notifications() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={() => {
-          refetchNotifications();
+          refresh();
         }}
       />
     </PermissionGuard>

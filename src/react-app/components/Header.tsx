@@ -1,7 +1,6 @@
 import { useState } from 'react';
-// Remova a linha abaixo
-// import { useNavigate } from 'react-router';
 import { useSupabaseAuth } from '@/react-app/hooks/useSupabaseAuth';
+import { useNotificationContext } from '@/react-app/contexts/NotificationContext';
 import UserProfile from './UserProfile';
 import SyncNotification from './SyncNotification';
 import NotificationBell from './NotificationBell';
@@ -13,8 +12,7 @@ interface HeaderProps {
 
 export default function Header({ title = 'Dashboard' }: HeaderProps) {
   const { user, refreshUser } = useSupabaseAuth();
-  // Remova a linha abaixo
-  // const navigate = useNavigate();
+  const { showToast } = useNotificationContext();
   const [showProfile, setShowProfile] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -35,16 +33,16 @@ export default function Header({ title = 'Dashboard' }: HeaderProps) {
     try {
       await refreshUser();
       
-      setSyncNotification({
-        visible: true,
-        type: 'success',
+      showToast({
+        title: 'Sincronização concluída',
         message: 'Dados sincronizados com sucesso!',
+        type: 'success',
       });
     } catch {
-      setSyncNotification({
-        visible: true,
+      showToast({
+        title: 'Erro na sincronização',
+        message: 'Não foi possível sincronizar os dados',
         type: 'error',
-        message: 'Erro na sincronização',
       });
     } finally {
       setIsSyncing(false);

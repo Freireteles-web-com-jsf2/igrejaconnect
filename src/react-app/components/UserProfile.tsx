@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSupabaseAuth } from '@/react-app/hooks/useSupabaseAuth';
-import { User, Mail, Phone, Calendar, MapPin, Shield, LogOut, Settings } from 'lucide-react';
+import { Mail, Phone, Calendar, MapPin, Shield, LogOut, Settings } from 'lucide-react';
+import { getAvatarUrl } from '@/react-app/utils/avatarPlaceholder';
 
 interface UserProfileProps {
   isOpen: boolean;
@@ -45,17 +46,11 @@ export default function UserProfile({ isOpen, onClose }: UserProfileProps) {
         <div className="p-6">
           {/* Avatar and Basic Info */}
           <div className="text-center mb-6">
-            {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt={user.name || 'Usuário'}
-                className="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-blue-100"
-              />
-            ) : (
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <User className="w-10 h-10 text-white" />
-              </div>
-            )}
+            <img
+              src={getAvatarUrl(user.avatar_url, user.name, 80)}
+              alt={user.name || 'Usuário'}
+              className="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-blue-100"
+            />
             <h3 className="text-xl font-bold text-gray-900 mb-1">
               {user.name || user.email}
             </h3>

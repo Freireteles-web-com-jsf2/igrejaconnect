@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Layout from '@/react-app/components/Layout';
 import { useApi, apiRequest } from '@/react-app/hooks/useApi';
+import PermissionGuard from '@/react-app/components/PermissionGuard';
 import { 
   Calendar, 
   Plus, 
@@ -240,13 +241,15 @@ export default function Events() {
                 Organize e gerencie os eventos da sua igreja
               </p>
             </div>
-            <button
-              onClick={handleAddEvent}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Novo Evento</span>
-            </button>
+            <PermissionGuard permission="events.create">
+              <button
+                onClick={handleAddEvent}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Novo Evento</span>
+              </button>
+            </PermissionGuard>
           </div>
         </div>
 
@@ -343,13 +346,15 @@ export default function Events() {
                     : 'Comece criando o primeiro evento da sua igreja'
                   }
                 </p>
-                <button
-                  onClick={handleAddEvent}
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Criar Primeiro Evento</span>
-                </button>
+                <PermissionGuard permission="events.create">
+                  <button
+                    onClick={handleAddEvent}
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Criar Primeiro Evento</span>
+                  </button>
+                </PermissionGuard>
               </div>
             ) : (
               <div className="space-y-4">
@@ -427,20 +432,24 @@ export default function Events() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleEditEvent(event)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Editar evento"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEvent(event)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Excluir evento"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <PermissionGuard permission="events.edit">
+                          <button
+                            onClick={() => handleEditEvent(event)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Editar evento"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </PermissionGuard>
+                        <PermissionGuard permission="events.delete">
+                          <button
+                            onClick={() => handleDeleteEvent(event)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Excluir evento"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </PermissionGuard>
                       </div>
                     </div>
                   );

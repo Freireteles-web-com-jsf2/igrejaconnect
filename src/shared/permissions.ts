@@ -109,7 +109,7 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     'events.view', 'events.create', 'events.edit', 'events.delete',
     'financial.view', 'financial.create', 'financial.edit', 'financial.delete', 'financial.reports',
     'users.view', 'users.edit', 'users.permissions',
-    'notifications.view', 'notifications.create', 'notifications.edit',
+    'notifications.view', 'notifications.create', 'notifications.edit', 'notifications.delete',
     'settings.view', 'settings.edit'
   ],
   'Pastor': [
@@ -117,7 +117,7 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     'departments.view', 'departments.create', 'departments.edit',
     'events.view', 'events.create', 'events.edit',
     'financial.view', 'financial.reports',
-    'notifications.view', 'notifications.create', 'notifications.edit'
+    'notifications.view', 'notifications.create', 'notifications.edit', 'notifications.delete'
   ],
   'Líder': [
     'dashboard.view', 'members.view', 'members.create', 'members.edit',
@@ -134,6 +134,11 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     'dashboard.view', 'members.view', 'departments.view', 'events.view', 'notifications.view'
   ],
   'Membro': [
-    'dashboard.view', 'events.view', 'notifications.view'
+    'dashboard.view', 
+    'members.view', 
+    'departments.view', 
+    'events.view', 
+    'financial.view', 
+    'notifications.view'
   ]
 };

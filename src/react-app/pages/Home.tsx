@@ -5,6 +5,7 @@ import Layout from '@/react-app/components/Layout';
 import { useApi } from '@/react-app/hooks/useApi';
 import FinancialChart from '@/react-app/components/FinancialChart';
 import { Users, Calendar, TrendingUp, Building2, DollarSign, FileText } from 'lucide-react';
+import { getAvatarUrl } from '@/react-app/utils/avatarPlaceholder';
 
 interface DashboardStats {
   totalMembers: number;
@@ -535,17 +536,11 @@ export default function Home() {
           <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Perfil do Usuário</h3>
             <div className="flex items-center space-x-4">
-              {user.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt={user.name || 'Usuário'}
-                  className="w-16 h-16 rounded-full border-4 border-gray-200"
-                />
-              ) : (
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                  <Users className="w-8 h-8 text-white" />
-                </div>
-              )}
+              <img
+                src={getAvatarUrl(user.avatar_url, user.name, 64)}
+                alt={user.name || 'Usuário'}
+                className="w-16 h-16 rounded-full border-4 border-gray-200"
+              />
               <div className="flex-1">
                 <h4 className="text-xl font-bold text-gray-900">
                   {user.name || user.email}

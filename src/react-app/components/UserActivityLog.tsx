@@ -1,6 +1,7 @@
 import { useState } from 'react';
 // import { useApi } from '@/react-app/hooks/useApi'; // Não usado no mock
 import { Clock, User, Shield, Eye, Calendar, Filter } from 'lucide-react';
+import { getAvatarUrl } from '@/react-app/utils/avatarPlaceholder';
 
 interface UserActivity {
   id: string;
@@ -241,7 +242,7 @@ export default function UserActivityLog() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <img
-                        src={activity.user?.avatar_url || '/api/placeholder/32/32'}
+                        src={getAvatarUrl(activity.user?.avatar_url, activity.user?.name, 32)}
                         alt="Profile"
                         className="w-8 h-8 rounded-full border border-gray-200"
                       />

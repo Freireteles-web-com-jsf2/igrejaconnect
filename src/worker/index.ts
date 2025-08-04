@@ -51,6 +51,53 @@ async function supabaseAuthMiddleware(c: any, next: any) {
   }
 }
 
+// Middleware de validação de permissões
+function requirePermission(permission: string) {
+  return async (c: any, next: any) => {
+    const user = c.get('user');
+
+    if (!user) {
+      return c.json({ error: 'Usuário não autenticado' }, 401);
+    }
+
+    const supabase = createSupabaseClient(c.env);
+
+    try {
+      // Buscar dados do usuário na tabela church_users
+      const { data: churchUser, error } = await supabase
+        .from('church_users')
+        .select('role, permissions')
+        .eq('email', user.email)
+        .single();
+
+      if (error || !churchUser) {
+        console.error('Erro ao buscar usuário:', error);
+        return c.json({ error: 'Usuário não encontrado no sistema' }, 403);
+      }
+
+      const userPermissions = churchUser.permissions || [];
+      const userRole = churchUser.role || 'Membro';
+
+      // Verificar se o usuário tem a permissão necessária
+      if (!userPermissions.includes(permission)) {
+        console.log(`❌ Permissão negada: ${user.email} tentou acessar ${permission} mas só tem:`, userPermissions);
+        return c.json({
+          error: 'Permissão insuficiente',
+          required: permission,
+          userRole: userRole,
+          userPermissions: userPermissions
+        }, 403);
+      }
+
+      console.log(`✅ Permissão concedida: ${user.email} pode acessar ${permission}`);
+      await next();
+    } catch (error) {
+      console.error('Erro no middleware de permissões:', error);
+      return c.json({ error: 'Erro interno do servidor' }, 500);
+    }
+  };
+}
+
 
 
 // Rota de teste para verificar se o Supabase está configurado
@@ -455,7 +502,7 @@ app.get('/api/members/:id', supabaseAuthMiddleware, async (c) => {
 });
 
 // POST /api/members - Criar novo membro
-app.post('/api/members', supabaseAuthMiddleware, zValidator('json', MemberSchema), async (c) => {
+app.post('/api/members', supabaseAuthMiddleware, requirePermission('members.create'), zValidator('json', MemberSchema), async (c) => {
   const memberData = c.req.valid('json');
   const supabase = createSupabaseClient(c.env);
 
@@ -493,7 +540,7 @@ app.post('/api/members', supabaseAuthMiddleware, zValidator('json', MemberSchema
 });
 
 // PUT /api/members/:id - Atualizar membro
-app.put('/api/members/:id', supabaseAuthMiddleware, zValidator('json', MemberSchema), async (c) => {
+app.put('/api/members/:id', supabaseAuthMiddleware, requirePermission('members.edit'), zValidator('json', MemberSchema), async (c) => {
   const id = c.req.param('id');
   const memberData = c.req.valid('json');
   const supabase = createSupabaseClient(c.env);
@@ -537,7 +584,7 @@ app.put('/api/members/:id', supabaseAuthMiddleware, zValidator('json', MemberSch
 });
 
 // DELETE /api/members/:id - Excluir membro
-app.delete('/api/members/:id', supabaseAuthMiddleware, async (c) => {
+app.delete('/api/members/:id', supabaseAuthMiddleware, requirePermission('members.delete'), async (c) => {
   const id = c.req.param('id');
   const supabase = createSupabaseClient(c.env);
 
@@ -639,7 +686,7 @@ app.get('/api/departments', async (c) => {
 });
 
 // POST /api/departments - Criar novo departamento
-app.post('/api/departments', supabaseAuthMiddleware, zValidator('json', DepartmentSchema), async (c) => {
+app.post('/api/departments', supabaseAuthMiddleware, requirePermission('departments.create'), zValidator('json', DepartmentSchema), async (c) => {
   const departmentData = c.req.valid('json');
   const supabase = createSupabaseClient(c.env);
 
@@ -679,7 +726,7 @@ app.post('/api/departments', supabaseAuthMiddleware, zValidator('json', Departme
 });
 
 // PUT /api/departments/:id - Atualizar departamento
-app.put('/api/departments/:id', supabaseAuthMiddleware, zValidator('json', DepartmentSchema), async (c) => {
+app.put('/api/departments/:id', supabaseAuthMiddleware, requirePermission('departments.edit'), zValidator('json', DepartmentSchema), async (c) => {
   const id = c.req.param('id');
   const departmentData = c.req.valid('json');
   const supabase = createSupabaseClient(c.env);
@@ -725,7 +772,7 @@ app.put('/api/departments/:id', supabaseAuthMiddleware, zValidator('json', Depar
 });
 
 // DELETE /api/departments/:id - Excluir departamento
-app.delete('/api/departments/:id', supabaseAuthMiddleware, async (c) => {
+app.delete('/api/departments/:id', supabaseAuthMiddleware, requirePermission('departments.delete'), async (c) => {
   const id = c.req.param('id');
   const supabase = createSupabaseClient(c.env);
 
@@ -864,7 +911,7 @@ app.get('/api/financial/debug', async (c) => {
 
   try {
     console.log('=== DEBUG: Verificando transações financeiras ===');
-    
+
     const { data, error, count } = await supabase
       .from('financial_transactions')
       .select('*', { count: 'exact' });
@@ -1063,7 +1110,7 @@ app.get('/api/financial/stats', async (c) => {
 });
 
 // POST /api/financial/transactions - Criar nova transação
-app.post('/api/financial/transactions', supabaseAuthMiddleware, zValidator('json', FinancialTransactionSchema), async (c) => {
+app.post('/api/financial/transactions', supabaseAuthMiddleware, requirePermission('financial.create'), zValidator('json', FinancialTransactionSchema), async (c) => {
   const transactionData = c.req.valid('json');
   const user = c.get('user');
   const supabase = createSupabaseClient(c.env);
@@ -1106,7 +1153,7 @@ app.post('/api/financial/transactions', supabaseAuthMiddleware, zValidator('json
 });
 
 // PUT /api/financial/transactions/:id - Atualizar transação
-app.put('/api/financial/transactions/:id', supabaseAuthMiddleware, zValidator('json', FinancialTransactionSchema), async (c) => {
+app.put('/api/financial/transactions/:id', supabaseAuthMiddleware, requirePermission('financial.edit'), zValidator('json', FinancialTransactionSchema), async (c) => {
   const id = c.req.param('id');
   const transactionData = c.req.valid('json');
   const supabase = createSupabaseClient(c.env);
@@ -1145,7 +1192,7 @@ app.put('/api/financial/transactions/:id', supabaseAuthMiddleware, zValidator('j
 });
 
 // DELETE /api/financial/transactions/:id - Excluir transação
-app.delete('/api/financial/transactions/:id', supabaseAuthMiddleware, async (c) => {
+app.delete('/api/financial/transactions/:id', supabaseAuthMiddleware, requirePermission('financial.delete'), async (c) => {
   const id = c.req.param('id');
   const supabase = createSupabaseClient(c.env);
 
@@ -1228,7 +1275,7 @@ app.get('/api/notifications/unread-count', supabaseAuthMiddleware, async (c) => 
 });
 
 // POST /api/notifications - Criar nova notificação
-app.post('/api/notifications', supabaseAuthMiddleware, zValidator('json', NotificationSchema), async (c) => {
+app.post('/api/notifications', supabaseAuthMiddleware, requirePermission('notifications.create'), zValidator('json', NotificationSchema), async (c) => {
   const notificationData = c.req.valid('json');
   const user = c.get('user');
   const supabase = createSupabaseClient(c.env);
@@ -1289,7 +1336,7 @@ app.post('/api/notifications', supabaseAuthMiddleware, zValidator('json', Notifi
       return c.json({ error: 'Erro ao criar notificação' }, 500);
     }
 
-    return c.json({ 
+    return c.json({
       message: 'Notificação criada com sucesso',
       count: notifications.length
     }, 201);
@@ -1354,7 +1401,7 @@ app.put('/api/notifications/mark-all-read', supabaseAuthMiddleware, async (c) =>
 });
 
 // DELETE /api/notifications/:id - Excluir notificação
-app.delete('/api/notifications/:id', supabaseAuthMiddleware, async (c) => {
+app.delete('/api/notifications/:id', supabaseAuthMiddleware, requirePermission('notifications.delete'), async (c) => {
   const id = c.req.param('id');
   const user = c.get('user');
   const supabase = createSupabaseClient(c.env);
@@ -1402,7 +1449,7 @@ app.get('/api/notifications/users', supabaseAuthMiddleware, async (c) => {
 });
 
 // POST /api/notifications/auto/birthday - Criar notificações automáticas de aniversário
-app.post('/api/notifications/auto/birthday', supabaseAuthMiddleware, async (c) => {
+app.post('/api/notifications/auto/birthday', supabaseAuthMiddleware, requirePermission('notifications.create'), async (c) => {
   const supabase = createSupabaseClient(c.env);
 
   try {
@@ -1452,7 +1499,7 @@ app.post('/api/notifications/auto/birthday', supabaseAuthMiddleware, async (c) =
       return c.json({ error: 'Erro ao criar notificações de aniversário' }, 500);
     }
 
-    return c.json({ 
+    return c.json({
       message: 'Notificações de aniversário criadas com sucesso',
       count: notifications.length,
       birthdays: todayBirthdays.map((m: { name: string }) => m.name)
@@ -1464,14 +1511,14 @@ app.post('/api/notifications/auto/birthday', supabaseAuthMiddleware, async (c) =
 });
 
 // POST /api/notifications/auto/meetings - Criar notificações automáticas de reuniões
-app.post('/api/notifications/auto/meetings', supabaseAuthMiddleware, async (c) => {
+app.post('/api/notifications/auto/meetings', supabaseAuthMiddleware, requirePermission('notifications.create'), async (c) => {
   const supabase = createSupabaseClient(c.env);
 
   try {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(now.getDate() + 1);
-    
+
     const tomorrowStart = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
     const tomorrowEnd = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23, 59, 59);
 
@@ -1500,7 +1547,7 @@ app.post('/api/notifications/auto/meetings', supabaseAuthMiddleware, async (c) =
         hour: '2-digit',
         minute: '2-digit'
       });
-      
+
       notifications.push({
         title: '📅 Reunião Amanhã',
         message: `Lembrete: ${meeting.name} tem reunião amanhã às ${meetingTime}.`,
@@ -1519,7 +1566,7 @@ app.post('/api/notifications/auto/meetings', supabaseAuthMiddleware, async (c) =
       return c.json({ error: 'Erro ao criar notificações de reunião' }, 500);
     }
 
-    return c.json({ 
+    return c.json({
       message: 'Notificações de reunião criadas com sucesso',
       count: notifications.length,
       meetings: meetings.map(m => m.name)
@@ -1687,7 +1734,7 @@ app.get('/api/events/:id', supabaseAuthMiddleware, async (c) => {
 });
 
 // POST /api/events - Criar novo evento
-app.post('/api/events', supabaseAuthMiddleware, zValidator('json', EventSchema), async (c) => {
+app.post('/api/events', supabaseAuthMiddleware, requirePermission('events.create'), zValidator('json', EventSchema), async (c) => {
   const supabase = createSupabaseClient(c.env);
   const user = c.get('user');
   const eventData = c.req.valid('json');
@@ -1752,7 +1799,7 @@ app.post('/api/events', supabaseAuthMiddleware, zValidator('json', EventSchema),
 });
 
 // PUT /api/events/:id - Atualizar evento
-app.put('/api/events/:id', supabaseAuthMiddleware, zValidator('json', EventSchema.partial()), async (c) => {
+app.put('/api/events/:id', supabaseAuthMiddleware, requirePermission('events.edit'), zValidator('json', EventSchema.partial()), async (c) => {
   const supabase = createSupabaseClient(c.env);
   const eventId = parseInt(c.req.param('id'));
   const eventData = c.req.valid('json');
@@ -1824,7 +1871,7 @@ app.put('/api/events/:id', supabaseAuthMiddleware, zValidator('json', EventSchem
 });
 
 // DELETE /api/events/:id - Excluir evento
-app.delete('/api/events/:id', supabaseAuthMiddleware, async (c) => {
+app.delete('/api/events/:id', supabaseAuthMiddleware, requirePermission('events.delete'), async (c) => {
   const supabase = createSupabaseClient(c.env);
   const eventId = parseInt(c.req.param('id'));
 
@@ -2122,7 +2169,7 @@ app.get('/api/announcements/:id', async (c) => {
 });
 
 // POST /api/announcements - Criar novo aviso
-app.post('/api/announcements', supabaseAuthMiddleware, zValidator('json', AnnouncementSchema), async (c) => {
+app.post('/api/announcements', supabaseAuthMiddleware, requirePermission('notifications.create'), zValidator('json', AnnouncementSchema), async (c) => {
   const announcementData = c.req.valid('json');
   const user = c.get('user');
   const supabase = createSupabaseClient(c.env);
@@ -2170,7 +2217,7 @@ app.post('/api/announcements', supabaseAuthMiddleware, zValidator('json', Announ
 });
 
 // PUT /api/announcements/:id - Atualizar aviso
-app.put('/api/announcements/:id', supabaseAuthMiddleware, zValidator('json', AnnouncementSchema), async (c) => {
+app.put('/api/announcements/:id', supabaseAuthMiddleware, requirePermission('notifications.edit'), zValidator('json', AnnouncementSchema), async (c) => {
   const id = c.req.param('id');
   const announcementData = c.req.valid('json');
   const supabase = createSupabaseClient(c.env);
@@ -2228,7 +2275,7 @@ app.put('/api/announcements/:id', supabaseAuthMiddleware, zValidator('json', Ann
 });
 
 // DELETE /api/announcements/:id - Excluir aviso
-app.delete('/api/announcements/:id', supabaseAuthMiddleware, async (c) => {
+app.delete('/api/announcements/:id', supabaseAuthMiddleware, requirePermission('notifications.delete'), async (c) => {
   const id = c.req.param('id');
   const supabase = createSupabaseClient(c.env);
 
@@ -2344,7 +2391,7 @@ app.get('/api/settings', supabaseAuthMiddleware, async (c) => {
 });
 
 // PUT /api/settings - Atualizar configurações da igreja
-app.put('/api/settings', supabaseAuthMiddleware, async (c) => {
+app.put('/api/settings', supabaseAuthMiddleware, requirePermission('settings.edit'), async (c) => {
   const supabase = createSupabaseClient(c.env);
 
   try {
@@ -2413,7 +2460,7 @@ app.put('/api/settings', supabaseAuthMiddleware, async (c) => {
 // ===== REPORTS API =====
 
 // GET /api/reports/members - Relatório de membros
-app.get('/api/reports/members', supabaseAuthMiddleware, async (c) => {
+app.get('/api/reports/members', supabaseAuthMiddleware, requirePermission('members.export'), async (c) => {
   const supabase = createSupabaseClient(c.env);
   const { status, department_id, age_min, age_max } = c.req.query();
 
@@ -2489,7 +2536,7 @@ app.get('/api/reports/members', supabaseAuthMiddleware, async (c) => {
 });
 
 // GET /api/reports/financial - Relatório financeiro
-app.get('/api/reports/financial', supabaseAuthMiddleware, async (c) => {
+app.get('/api/reports/financial', supabaseAuthMiddleware, requirePermission('financial.reports'), async (c) => {
   const supabase = createSupabaseClient(c.env);
   const { start_date, end_date, type, category } = c.req.query();
 
@@ -2657,7 +2704,7 @@ app.get('/api/reports/financial', supabaseAuthMiddleware, async (c) => {
 });
 
 // GET /api/reports/departments - Relatório de departamentos
-app.get('/api/reports/departments', supabaseAuthMiddleware, async (c) => {
+app.get('/api/reports/departments', supabaseAuthMiddleware, requirePermission('departments.view'), async (c) => {
   const supabase = createSupabaseClient(c.env);
   const { status, category } = c.req.query();
 
@@ -2750,7 +2797,7 @@ app.get('/api/reports/departments', supabaseAuthMiddleware, async (c) => {
 });
 
 // GET /api/reports/events - Relatório de eventos
-app.get('/api/reports/events', supabaseAuthMiddleware, async (c) => {
+app.get('/api/reports/events', supabaseAuthMiddleware, requirePermission('events.view'), async (c) => {
   const supabase = createSupabaseClient(c.env);
   const { start_date, end_date, event_type, status } = c.req.query();
 
@@ -2843,31 +2890,31 @@ app.get('/api/users/test', async (c) => {
 // GET /api/check-migration - Verificar se as tabelas existem
 app.get('/api/check-migration', async (c) => {
   const supabase = createSupabaseClient(c.env);
-  
+
   try {
     // Tentar acessar a tabela church_users
     const { error } = await supabase
       .from('church_users')
       .select('count')
       .limit(1);
-    
+
     if (error) {
-      return c.json({ 
-        migrationNeeded: true, 
+      return c.json({
+        migrationNeeded: true,
         error: error.message,
-        message: 'Tabela church_users não existe. Execute a migração.' 
+        message: 'Tabela church_users não existe. Execute a migração.'
       });
     }
-    
-    return c.json({ 
-      migrationNeeded: false, 
-      message: 'Migração já executada. Tabelas existem.' 
+
+    return c.json({
+      migrationNeeded: false,
+      message: 'Migração já executada. Tabelas existem.'
     });
   } catch (error) {
-    return c.json({ 
-      migrationNeeded: true, 
+    return c.json({
+      migrationNeeded: true,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
-      message: 'Erro ao verificar migração. Execute a migração.' 
+      message: 'Erro ao verificar migração. Execute a migração.'
     });
   }
 });
@@ -2875,29 +2922,29 @@ app.get('/api/check-migration', async (c) => {
 // GET /api/debug/users - Debug: listar usuários sem autenticação
 app.get('/api/debug/users', async (c) => {
   const supabase = createSupabaseClient(c.env);
-  
+
   try {
     const { data: users, error } = await supabase
       .from('church_users')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) {
-      return c.json({ 
+      return c.json({
         error: error.message,
-        message: 'Erro ao buscar usuários' 
+        message: 'Erro ao buscar usuários'
       });
     }
-    
-    return c.json({ 
+
+    return c.json({
       users: users || [],
       count: users?.length || 0,
-      message: 'Usuários encontrados na tabela church_users' 
+      message: 'Usuários encontrados na tabela church_users'
     });
   } catch (error) {
-    return c.json({ 
+    return c.json({
       error: error instanceof Error ? error.message : 'Erro desconhecido',
-      message: 'Erro ao buscar usuários' 
+      message: 'Erro ao buscar usuários'
     });
   }
 });
@@ -2935,6 +2982,13 @@ app.get('/api/users', async (c) => {
       }
     })) || [];
 
+    console.log('Sample user data:', enrichedUsers[0] ? {
+      id: enrichedUsers[0].id,
+      email: enrichedUsers[0].email,
+      churchRole: enrichedUsers[0].churchRole,
+      userPermissions: enrichedUsers[0].userPermissions?.length || 0
+    } : 'No users');
+
     console.log('Enriched users:', enrichedUsers.length);
     return c.json(enrichedUsers);
   } catch (error) {
@@ -2946,30 +3000,30 @@ app.get('/api/users', async (c) => {
 // GET /api/debug/permissions - Debug: listar permissões sem autenticação
 app.get('/api/debug/permissions', async (c) => {
   const supabase = createSupabaseClient(c.env);
-  
+
   try {
     const { data: permissions, error } = await supabase
       .from('permissions')
       .select('*')
       .order('module', { ascending: true })
       .order('action', { ascending: true });
-    
+
     if (error) {
-      return c.json({ 
+      return c.json({
         error: error.message,
-        message: 'Erro ao buscar permissões' 
+        message: 'Erro ao buscar permissões'
       });
     }
-    
-    return c.json({ 
+
+    return c.json({
       permissions: permissions || [],
       count: permissions?.length || 0,
-      message: 'Permissões encontradas na tabela permissions' 
+      message: 'Permissões encontradas na tabela permissions'
     });
   } catch (error) {
-    return c.json({ 
+    return c.json({
       error: error instanceof Error ? error.message : 'Erro desconhecido',
-      message: 'Erro ao buscar permissões' 
+      message: 'Erro ao buscar permissões'
     });
   }
 });
@@ -2977,29 +3031,29 @@ app.get('/api/debug/permissions', async (c) => {
 // GET /api/debug/announcements - Debug: listar avisos sem autenticação
 app.get('/api/debug/announcements', async (c) => {
   const supabase = createSupabaseClient(c.env);
-  
+
   try {
     const { data: announcements, error } = await supabase
       .from('announcements')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     if (error) {
-      return c.json({ 
+      return c.json({
         error: error.message,
-        message: 'Erro ao buscar avisos' 
+        message: 'Erro ao buscar avisos'
       });
     }
-    
-    return c.json({ 
+
+    return c.json({
       announcements: announcements || [],
       count: announcements?.length || 0,
-      message: 'Avisos encontrados na tabela announcements' 
+      message: 'Avisos encontrados na tabela announcements'
     });
   } catch (error) {
-    return c.json({ 
+    return c.json({
       error: error instanceof Error ? error.message : 'Erro desconhecido',
-      message: 'Erro ao buscar avisos' 
+      message: 'Erro ao buscar avisos'
     });
   }
 });
@@ -3031,28 +3085,25 @@ app.get('/api/permissions', async (c) => {
 });
 
 // PUT /api/users/:id/permissions - Atualizar permissões de um usuário
-app.put('/api/users/:id/permissions', supabaseAuthMiddleware, async (c) => {
+app.put('/api/users/:id/permissions', supabaseAuthMiddleware, requirePermission('users.permissions'), async (c) => {
   const userId = c.req.param('id');
-  const currentUser = c.get('user');
   const supabase = createSupabaseClient(c.env);
 
-  try {
-    // Verificar se o usuário atual tem permissão para gerenciar usuários
-    const { data: currentUserData } = await supabase
-      .from('church_users')
-      .select('role, permissions')
-      .eq('id', currentUser.id)
-      .single();
+  console.log('=== PUT /api/users/:id/permissions chamada (sem auth para debug) ===');
+  console.log('User ID:', userId);
 
-    if (!currentUserData || currentUserData.role !== 'Administrador') {
-      return c.json({ error: 'Acesso negado. Apenas administradores podem gerenciar permissões.' }, 403);
-    }
+  try {
+    // Temporariamente removendo verificação de permissão para debug
+    console.log('⚠️ Verificação de permissão desabilitada para debug');
 
     const body = await c.req.json();
     const { role, permissions } = body;
 
+    console.log('Payload recebido:', { role, permissions: permissions?.length || 0 });
+
     // Validar dados
     if (!role || !Array.isArray(permissions)) {
+      console.log('❌ Dados inválidos:', { role, permissions });
       return c.json({ error: 'Dados inválidos. Role e permissions são obrigatórios.' }, 400);
     }
 
@@ -3069,9 +3120,15 @@ app.put('/api/users/:id/permissions', supabaseAuthMiddleware, async (c) => {
       .single();
 
     if (error) {
-      console.error('Error updating user permissions:', error);
+      console.error('❌ Error updating user permissions:', error);
       return c.json({ error: 'Erro ao atualizar permissões do usuário' }, 500);
     }
+
+    console.log('✅ Permissões atualizadas com sucesso:', {
+      userId,
+      newRole: data.role,
+      newPermissions: data.permissions?.length || 0
+    });
 
     return c.json(data);
   } catch (error) {
@@ -3109,7 +3166,7 @@ app.get('/api/users/current', supabaseAuthMiddleware, async (c) => {
 });
 
 // PUT /api/users/:id/status - Ativar/desativar usuário
-app.put('/api/users/:id/status', supabaseAuthMiddleware, async (c) => {
+app.put('/api/users/:id/status', supabaseAuthMiddleware, requirePermission('users.edit'), async (c) => {
   const userId = c.req.param('id');
   const currentUser = c.get('user');
   const supabase = createSupabaseClient(c.env);

@@ -1,6 +1,8 @@
 import { ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useSupabaseAuth } from '@/react-app/hooks/useSupabaseAuth';
+import SystemNotificationListener from './SystemNotificationListener';
+import { getAvatarUrl } from '@/react-app/utils/avatarPlaceholder';
 import { LogOut, Users, DollarSign, Bell, Home, Menu, Shield, Settings, Building2, Calendar, FileText, Megaphone, ChevronRight, Activity } from 'lucide-react';
 import { useState } from 'react';
 import { usePermissions } from '@/react-app/hooks/usePermissions';
@@ -151,6 +153,8 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* System Notification Listener */}
+      <SystemNotificationListener />
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="h-20 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 relative">
@@ -223,7 +227,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center mb-3 p-3 bg-white rounded-lg shadow-sm">
             <div className="relative">
               <img
-                src={user?.avatar_url || '/api/placeholder/32/32'}
+                src={getAvatarUrl(user?.avatar_url, user?.name, 40)}
                 alt="Profile"
                 className="w-10 h-10 rounded-full mr-3 border-2 border-blue-200"
               />
@@ -289,11 +293,11 @@ export default function Layout({ children }: LayoutProps) {
               <div className="relative">
                 <button
                   onClick={() => {
-                    console.log('Clicou no ícone de notificação do Layout - navegando para /communication');
-                    navigate('/communication');
+                    console.log('Clicou no ícone de notificação do Layout - navegando para /notifications');
+                    navigate('/notifications');
                   }}
                   className="p-2 text-gray-400 hover:text-gray-500 rounded-lg hover:bg-gray-100 transition-colors"
-                  title="Sistema de Comunicação e Avisos"
+                  title="Sistema de Notificações"
                 >
                   <Bell className="w-5 h-5" />
                   <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
@@ -315,7 +319,7 @@ export default function Layout({ children }: LayoutProps) {
                   </p>
                 </div>
                 <img
-                  src={user?.avatar_url || '/api/placeholder/32/32'}
+                  src={getAvatarUrl(user?.avatar_url, user?.name, 32)}
                   alt="Profile"
                   className="w-8 h-8 rounded-full border-2 border-gray-200"
                 />

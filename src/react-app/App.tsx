@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { NotificationProvider } from "@/react-app/contexts/NotificationContext";
 import HomePage from "@/react-app/pages/Home";
 import Login from "@/react-app/pages/Login";
 import AuthCallback from "@/react-app/pages/AuthCallback";
@@ -8,6 +9,8 @@ import MemberDetail from "@/react-app/pages/MemberDetail";
 import Departments from "@/react-app/pages/Departments";
 import Finance from "@/react-app/pages/Finance";
 import Notifications from "@/react-app/pages/Notifications";
+import NotificationsUltraSimple from "@/react-app/pages/NotificationsUltraSimple";
+import NotificationsDebug from "@/react-app/pages/NotificationsDebug";
 import MembersSimple from "@/react-app/pages/MembersSimple";
 import DepartmentsSimple from "@/react-app/pages/DepartmentsSimple";
 import FinanceSimple from "@/react-app/pages/FinanceSimple";
@@ -20,7 +23,8 @@ import Communication from "@/react-app/pages/Communication";
 export default function App() {
   return (
     <Router>
-      <Routes>
+      <NotificationProvider>
+        <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
@@ -39,8 +43,11 @@ export default function App() {
         <Route path="/finance" element={<FinanceSimple />} />
         <Route path="/finance-original" element={<Finance />} />
         <Route path="/notifications" element={<Notifications />} />
+        <Route path="/notifications-simple" element={<NotificationsUltraSimple />} />
+        <Route path="/notifications-debug" element={<NotificationsDebug />} />
         <Route path="*" element={<HomePage />} />
       </Routes>
+      </NotificationProvider>
     </Router>
   );
 }
