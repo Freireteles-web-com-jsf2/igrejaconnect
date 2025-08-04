@@ -20,11 +20,16 @@ jobs:
         node-version: '18'
         cache: 'npm'
 
+    - name: Setup clean package.json for GitHub Pages
+      run: |
+        cp package.gh-pages.json package.json
+        rm -rf node_modules package-lock.json
+
     - name: Install dependencies
-      run: npm ci --omit=optional
+      run: npm install
 
     - name: Build
-      run: npm run build:gh-pages
+      run: npm run build
       env:
         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
         VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
