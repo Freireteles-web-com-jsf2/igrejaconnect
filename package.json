@@ -37,12 +37,12 @@
     "wrangler": "^4.25.0"
   },
   "scripts": {
-    "build": "tsc -b && vite build",
-    "build:gh-pages": "NODE_ENV=production npm run build",
+    "build": "tsc -b && vite build --config vite.config.cloudflare.ts",
+    "build:gh-pages": "NODE_ENV=production tsc -b && vite build",
     "vercel-build": "npm run build",
     "cf-typegen": "wrangler types",
-    "check": "tsc && vite build && wrangler deploy --dry-run",
-    "dev": "vite",
+    "check": "tsc && vite build --config vite.config.cloudflare.ts && wrangler deploy --dry-run",
+    "dev": "vite --config vite.config.cloudflare.ts",
     "lint": "eslint .",
     "preview": "vite preview"
   }
