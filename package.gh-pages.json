@@ -35,8 +35,8 @@
     "vite": "6.3.2"
   },
   "scripts": {
-    "build": "NODE_ENV=production tsc -b && vite build",
-    "dev": "vite",
+    "build": "NODE_ENV=production tsc -b && vite build --config vite.config.gh-pages.js",
+    "dev": "vite --config vite.config.gh-pages.js",
     "lint": "eslint .",
     "preview": "vite preview"
   }

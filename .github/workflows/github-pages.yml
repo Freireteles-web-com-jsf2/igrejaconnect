@@ -1,4 +1,4 @@
-name: GitHub Pages Deploy
+name: GitHub Pages Deploy v2
 
 on:
   push:
@@ -54,6 +54,10 @@ jobs:
     - name: Build application
       run: |
         echo "=== BUILDING WITH CLEAN CONFIG ==="
+        echo "Current directory: $(pwd)"
+        echo "Available configs:"
+        ls -la vite.config*
+        echo "Running command: NODE_ENV=production npx vite build --config vite.config.gh-pages.js"
         NODE_ENV=production npx vite build --config vite.config.gh-pages.js
       env:
         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
