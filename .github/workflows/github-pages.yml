@@ -46,10 +46,16 @@ jobs:
           echo "SUCCESS: No Cloudflare dependencies found"
         fi
 
+    - name: TypeScript compilation
+      run: |
+        echo "=== COMPILING TYPESCRIPT ==="
+        npx tsc -b
+
     - name: Build application
-      run: npm run build
+      run: |
+        echo "=== BUILDING WITH CLEAN CONFIG ==="
+        NODE_ENV=production npx vite build --config vite.config.gh-pages.js
       env:
-        NODE_ENV: production
         VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
         VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
