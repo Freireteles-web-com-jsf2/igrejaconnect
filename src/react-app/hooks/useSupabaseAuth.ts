@@ -58,9 +58,10 @@ export function useSupabaseAuth(): UseSupabaseAuthReturn {
 
       // Determinar a URL de redirecionamento baseada no ambiente
       const isProduction = window.location.hostname === 'freireteles-web-com-jsf2.github.io';
-      const redirectTo = isProduction 
-        ? 'https://freireteles-web-com-jsf2.github.io/igrejaconnect/auth/callback'
-        : 'http://localhost:5173/auth/callback';
+      const baseUrl = isProduction 
+        ? 'https://freireteles-web-com-jsf2.github.io/igrejaconnect'
+        : 'http://localhost:5173';
+      const redirectTo = `${baseUrl}/auth/callback`;
 
       console.log('OAuth redirect URL:', redirectTo);
 

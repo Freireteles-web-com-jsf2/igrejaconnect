@@ -23,34 +23,34 @@ import Communication from "@/react-app/pages/Communication";
 
 export default function App() {
   const basename = process.env.NODE_ENV === 'production' ? '/igrejaconnect' : '';
-  
+
   return (
     <Router basename={basename}>
       <NotificationProvider>
         <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/auth/fallback" element={<AuthFallback />} />
-        <Route path="/users" element={<UserManagement />} />
-        <Route path="/users-full" element={<UserManagement />} />
-        <Route path="/members" element={<MembersSimple />} />
-        <Route path="/members-original" element={<Members />} />
-        <Route path="/members/:id" element={<MemberDetail />} />
-        <Route path="/departments" element={<DepartmentsSimple />} />
-        <Route path="/departments-original" element={<Departments />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/communication" element={<Communication />} />
-        <Route path="/dashboard" element={<HomePage />} />
-        <Route path="/finance" element={<FinanceSimple />} />
-        <Route path="/finance-original" element={<Finance />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/notifications-simple" element={<NotificationsUltraSimple />} />
-        <Route path="/notifications-debug" element={<NotificationsDebug />} />
-        <Route path="*" element={<HomePage />} />
-      </Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/fallback" element={<AuthFallback />} />
+          <Route path="/users" element={<UserManagement />} />
+          <Route path="/users-full" element={<UserManagement />} />
+          <Route path="/members" element={<MembersSimple />} />
+          <Route path="/members-original" element={<Members />} />
+          <Route path="/members/:id" element={<MemberDetail />} />
+          <Route path="/departments" element={<DepartmentsSimple />} />
+          <Route path="/departments-original" element={<Departments />} />
+          <Route path="/events" element={<Events />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/communication" element={<Communication />} />
+          <Route path="/dashboard" element={<HomePage />} />
+          <Route path="/finance" element={<FinanceSimple />} />
+          <Route path="/finance-original" element={<Finance />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/notifications-simple" element={<NotificationsUltraSimple />} />
+          <Route path="/notifications-debug" element={<NotificationsDebug />} />
+          <Route path="*" element={<HomePage />} />
+        </Routes>
       </NotificationProvider>
     </Router>
   );
