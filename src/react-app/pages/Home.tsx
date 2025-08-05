@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import Layout from '@/react-app/components/Layout';
 import { useApi } from '@/react-app/hooks/useApi';
+import { API_CONFIG } from '@/shared/api-config';
 import FinancialChart from '@/react-app/components/FinancialChart';
 import { Users, Calendar, TrendingUp, Building2, DollarSign, FileText } from 'lucide-react';
 import { getAvatarUrl } from '@/react-app/utils/avatarPlaceholder';
@@ -48,8 +49,29 @@ interface ChartData {
 export default function Home() {
   const { user, isLoading } = useSupabaseAuth();
   const navigate = useNavigate();
-  const { data: stats, loading: statsLoading } = useApi<DashboardStats>('/api/dashboard/stats');
-  const { data: chartData, loading: chartsLoading } = useApi<ChartData>('/api/dashboard/charts');
+  // No GitHub Pages, usar dados mock em vez de APIs
+  const mockStats: DashboardStats = {
+    totalMembers: 150,
+    activeMembers: 120,
+    birthdayMembers: 5,
+    monthlyIncome: 15000,
+    monthlyExpenses: 8000,
+    netBalance: 7000,
+    totalDepartments: 8,
+    activeDepartments: 6,
+    totalIncome: 180000,
+    totalExpenses: 95000,
+    totalBalance: 85000,
+    recentTransactions: 25,
+    monthlyEvents: 12
+  };
+
+  const { data: stats, loading: statsLoading } = API_CONFIG.isGitHubPages 
+    ? { data: mockStats, loading: false } 
+    : useApi<DashboardStats>('/api/dashboard/stats');
+  const { data: chartData, loading: chartsLoading } = API_CONFIG.isGitHubPages 
+    ? { data: null, loading: false } 
+    : useApi<ChartData>('/api/dashboard/charts');
 
   // Redirect to login if not authenticated
   useEffect(() => {

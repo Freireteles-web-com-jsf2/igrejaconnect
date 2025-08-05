@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/shared/supabase';
+import { API_CONFIG } from '@/shared/api-config';
 
 interface ApiState<T> {
   data: T | null;
@@ -21,6 +22,16 @@ export function useApi<T>(url: string, deps: unknown[] = []): ApiStateWithRefetc
   const fetchData = async () => {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
+      
+      // Se estiver no GitHub Pages, não fazer chamadas de API
+      if (API_CONFIG.isGitHubPages) {
+        setState({ 
+          data: [] as T, 
+          loading: false, 
+          error: 'API não disponível no GitHub Pages. Use Supabase diretamente.' 
+        });
+        return;
+      }
       
       // Sem autenticação já que as APIs estão temporariamente sem auth
       const response = await fetch(url, {

@@ -7,6 +7,7 @@ import UserPermissionValidation from '@/react-app/components/UserPermissionValid
 import UserAuditTrail from '@/react-app/components/UserAuditTrail';
 import SimplePermissionEditor from '@/react-app/components/SimplePermissionEditor';
 import { useApi, apiRequest } from '@/react-app/hooks/useApi';
+import { useSupabaseData } from '@/react-app/hooks/useSupabaseData';
 import { Users, Edit, Shield, Save, X, UserCheck, UserX, Search, Download, Grid, List, Clock } from 'lucide-react';
 import { showToast } from '@/react-app/utils/toast';
 import Avatar from '@/react-app/components/Avatar';
@@ -61,7 +62,7 @@ export default function UserManagement() {
     }
   };
 
-  const { data: users, loading: usersLoading, refetch: refetchUsers, error: usersError } = useApi<UserWithPermissions[]>('/api/users');
+  const { data: users, loading: usersLoading, refetch: refetchUsers, error: usersError } = useSupabaseData<UserWithPermissions[]>('users', '/api/users');
 
   // Debug: Log dos usuários quando mudarem
   React.useEffect(() => {
