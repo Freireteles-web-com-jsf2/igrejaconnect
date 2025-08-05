@@ -1,0 +1,13 @@
+include:
+  - auth.html
+  - 404.html
+  - .nojekyll
+
+plugins:
+  - jekyll-redirect-from
+
+defaults:
+  - scope:
+      path: "auth"
+    values:
+      redirect_to: "/igrejaconnect/auth/callback"

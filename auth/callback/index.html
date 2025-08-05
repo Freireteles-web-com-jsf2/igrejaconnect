@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecionando - IgrejaConnect</title>
+    <meta http-equiv="refresh" content="0; url=https://freireteles-web-com-jsf2.github.io/igrejaconnect/auth/callback">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>Redirecionando...</h1>
+        <p>Corrigindo URL de autenticação...</p>
+        <p id="status">Processando...</p>
+    </div>
+
+    <script>
+        console.log('Auth callback redirect page loaded');
+        console.log('Current URL:', window.location.href);
+        console.log('Hash:', window.location.hash);
+        
+        const statusEl = document.getElementById('status');
+        
+        // Função para redirecionar imediatamente
+        function redirectToCorrectUrl() {
+            try {
+                const hash = window.location.hash;
+                const correctUrl = `https://freireteles-web-com-jsf2.github.io/igrejaconnect/auth/callback${hash}`;
+                
+                console.log('Redirecting to:', correctUrl);
+                statusEl.textContent = 'Redirecionando...';
+                
+                // Múltiplas tentativas de redirecionamento
+                window.location.replace(correctUrl);
+                window.location.href = correctUrl;
+                
+                // Fallback com timeout
+                setTimeout(() => {
+                    window.location.assign(correctUrl);
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error redirecting:', error);
+                statusEl.textContent = 'Erro no redirecionamento';
+                
+                // Fallback para página inicial
+                setTimeout(() => {
+                    window.location.replace('https://freireteles-web-com-jsf2.github.io/igrejaconnect/');
+                }, 2000);
+            }
+        }
+        
+        // Executar redirecionamento imediatamente
+        redirectToCorrectUrl();
+        
+        // Fallback adicional
+        setTimeout(redirectToCorrectUrl, 1000);
+    </script>
+</body>
+</html>

@@ -9,6 +9,11 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 5000,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html')
+      }
+    }
   },
   resolve: {
     alias: {
