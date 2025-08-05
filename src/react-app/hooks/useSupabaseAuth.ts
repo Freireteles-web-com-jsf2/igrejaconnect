@@ -56,10 +56,22 @@ export function useSupabaseAuth(): UseSupabaseAuthReturn {
       setError(null);
       setIsLoading(true);
 
+      // Determinar a URL de redirecionamento baseada no ambiente
+      const isProduction = window.location.hostname === 'freireteles-web-com-jsf2.github.io';
+      const redirectTo = isProduction 
+        ? 'https://freireteles-web-com-jsf2.github.io/igrejaconnect/auth/callback'
+        : 'http://localhost:5173/auth/callback';
+
+      console.log('OAuth redirect URL:', redirectTo);
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/igrejaconnect/auth/callback`
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
 
