@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Redirecionando - IgrejaConnect</title>
+    <meta http-equiv="refresh" content="0; url=https://freireteles-web-com-jsf2.github.io/igrejaconnect/auth/callback">
     <style>
         body {
             margin: 0;
@@ -62,40 +63,40 @@
         
         const statusEl = document.getElementById('status');
         
-        try {
-            // Extrair o hash com os tokens de autenticação
-            const hash = window.location.hash;
-            
-            if (hash && hash.includes('access_token')) {
-                statusEl.textContent = 'Token encontrado, redirecionando...';
-                
-                // Construir a URL correta
+        // Função para redirecionar imediatamente
+        function redirectToCorrectUrl() {
+            try {
+                const hash = window.location.hash;
                 const correctUrl = `https://freireteles-web-com-jsf2.github.io/igrejaconnect/auth/callback${hash}`;
                 
                 console.log('Redirecting to:', correctUrl);
+                statusEl.textContent = 'Redirecionando...';
                 
-                // Redirecionar para a URL correta
-                setTimeout(() => {
-                    window.location.replace(correctUrl);
-                }, 1000);
-            } else {
-                statusEl.textContent = 'Token não encontrado';
-                console.error('No access token found in URL');
+                // Múltiplas tentativas de redirecionamento
+                window.location.replace(correctUrl);
+                window.location.href = correctUrl;
                 
-                // Redirecionar para login após 3 segundos
+                // Fallback com timeout
                 setTimeout(() => {
-                    window.location.replace('https://freireteles-web-com-jsf2.github.io/igrejaconnect/login');
-                }, 3000);
+                    window.location.assign(correctUrl);
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error redirecting:', error);
+                statusEl.textContent = 'Erro no redirecionamento';
+                
+                // Fallback para página inicial
+                setTimeout(() => {
+                    window.location.replace('https://freireteles-web-com-jsf2.github.io/igrejaconnect/');
+                }, 2000);
             }
-        } catch (error) {
-            console.error('Error processing auth callback:', error);
-            statusEl.textContent = 'Erro no processamento';
-            
-            // Redirecionar para login em caso de erro
-            setTimeout(() => {
-                window.location.replace('https://freireteles-web-com-jsf2.github.io/igrejaconnect/login');
-            }, 3000);
         }
+        
+        // Executar redirecionamento imediatamente
+        redirectToCorrectUrl();
+        
+        // Fallback adicional
+        setTimeout(redirectToCorrectUrl, 1000);
     </script>
 </body>
 </html>
