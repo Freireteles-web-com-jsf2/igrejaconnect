@@ -19,7 +19,7 @@ import Events from "@/react-app/pages/Events";
 import Reports from "@/react-app/pages/Reports";
 import Settings from "@/react-app/pages/Settings";
 import Communication from "@/react-app/pages/Communication";
-
+// import Dashboard from "./pages/Dashboard"; // Não existe ainda
 
 export default function App() {
   const basename = process.env.NODE_ENV === 'production' ? '/igrejaconnect' : '';
@@ -43,7 +43,7 @@ export default function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/communication" element={<Communication />} />
-
+        <Route path="/dashboard" element={<HomePage />} />
         <Route path="/finance" element={<FinanceSimple />} />
         <Route path="/finance-original" element={<Finance />} />
         <Route path="/notifications" element={<Notifications />} />
