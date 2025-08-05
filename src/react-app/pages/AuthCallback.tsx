@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSupabaseAuth } from '@/react-app/hooks/useSupabaseAuth';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/shared/supabase';
 
 export default function AuthCallback() {
   const { user } = useSupabaseAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Finalizando login...');
 
@@ -16,8 +17,44 @@ export default function AuthCallback() {
         setStatus('loading');
         setMessage('Processando autenticação...');
         
-        // O Supabase automaticamente processa o callback
-        // Aguardar um pouco para o processo completar
+        console.log('Current URL:', window.location.href);
+        console.log('Location search:', location.search);
+        console.log('Location hash:', location.hash);
+        
+        // Verificar se há parâmetros de callback na URL
+        const urlParams = new URLSearchParams(location.search);
+        const hashParams = new URLSearchParams(location.hash.substring(1));
+        
+        console.log('URL Params:', Object.fromEntries(urlParams));
+        console.log('Hash Params:', Object.fromEntries(hashParams));
+        
+        // Se há access_token no hash, processar manualmente
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        
+        if (accessToken) {
+          console.log('Found access token in URL, setting session...');
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || ''
+          });
+          
+          if (error) {
+            throw error;
+          }
+          
+          if (data.session) {
+            setStatus('success');
+            setMessage('Login realizado com sucesso! Redirecionando...');
+            
+            setTimeout(() => {
+              navigate('/');
+            }, 1500);
+            return;
+          }
+        }
+        
+        // Fallback: aguardar processamento automático do Supabase
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         // Verificar se há sessão
@@ -49,7 +86,7 @@ export default function AuthCallback() {
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, location]);
 
   // If user is already authenticated, redirect to dashboard
   useEffect(() => {

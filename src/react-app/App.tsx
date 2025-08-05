@@ -3,6 +3,7 @@ import { NotificationProvider } from "@/react-app/contexts/NotificationContext";
 import HomePage from "@/react-app/pages/Home";
 import Login from "@/react-app/pages/Login";
 import AuthCallback from "@/react-app/pages/AuthCallback";
+import AuthFallback from "@/react-app/pages/AuthFallback";
 import UserManagement from "@/react-app/pages/UserManagement";
 import Members from "@/react-app/pages/Members";
 import MemberDetail from "@/react-app/pages/MemberDetail";
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/fallback" element={<AuthFallback />} />
         <Route path="/users" element={<UserManagement />} />
         <Route path="/users-full" element={<UserManagement />} />
         <Route path="/members" element={<MembersSimple />} />
