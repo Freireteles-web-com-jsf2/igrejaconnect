@@ -15,14 +15,19 @@
       // Note: this 404.html file must be at least 512 bytes for it to work
       // with Internet Explorer (it is currently > 512 bytes)
 
-      // If you're creating a Project Pages site and NOT using a custom domain,
-      // then set pathSegmentsToKeep to 1 (enterprise users may need to set it to > 1).
-      // This way the code will only replace the route part and not the real directory.
-      // This script should be placed at the root of your repository (at /404.html).
-      // If you're using a custom domain, set this to 0.
-      var pathSegmentsToKeep = 1;
-
+      // Special handling for OAuth callback
       var l = window.location;
+      
+      // Check if this is an OAuth callback URL
+      if (l.pathname === '/auth/callback' && l.hash.includes('access_token')) {
+        console.log('OAuth callback detected, redirecting to correct path');
+        // Redirect to the correct path with the hash
+        l.replace(l.protocol + '//' + l.hostname + '/igrejaconnect/auth/callback' + l.hash);
+        return;
+      }
+      
+      // Standard SPA routing for other 404s
+      var pathSegmentsToKeep = 1;
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
         l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
