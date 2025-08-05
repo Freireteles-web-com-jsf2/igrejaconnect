@@ -5,3 +5,9 @@ node_modules/
 worker-configuration.d.ts
 
 .vercel
+
+# Environment files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

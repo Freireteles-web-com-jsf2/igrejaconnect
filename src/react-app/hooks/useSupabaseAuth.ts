@@ -59,8 +59,7 @@ export function useSupabaseAuth(): UseSupabaseAuthReturn {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: import.meta.env.VITE_OAUTH_REDIRECT_URL
-
+          redirectTo: `${window.location.origin}/igrejaconnect/auth/callback`
         }
       });
 
